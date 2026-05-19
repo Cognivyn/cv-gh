@@ -1,0 +1,20 @@
+[workspace]
+members = ["packages/rust-core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Cognivyn <oss@cognivyn.com>"]
+license = "MIT"
+repository = "https://github.com/cognivyn/cv-gh"
+homepage = "https://github.com/cognivyn/cv-gh"
+description = "AI-powered GitHub workflow CLI"
+keywords = ["cli", "github", "ai", "workflow", "devtools"]
+categories = ["command-line-utilities", "development-tools"]
+
+[workspace.dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
+serde = { version = "1.0", features = ["derive"] }
