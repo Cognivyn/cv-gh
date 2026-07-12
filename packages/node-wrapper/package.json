@@ -1,23 +1,13 @@
 {
   "name": "@cognivyn/cv-gh",
   "version": "0.1.0",
-  "description": "AI-powered GitHub workflow CLI (Node.js wrapper)",
-  "bin": {
-    "cv-gh": "./cli.js",
-    "cvgh": "./cli.js"
-  },
-  "files": ["cli.js", "install.js"],
-  "scripts": {
-    "postinstall": "node install.js"
-  },
-  "dependencies": {
-    "which": "^4.0.0"
-  },
+  "description": "AI-powered GitHub workflow CLI",
+  "bin": { "cv-gh": "./cli.js", "cvgh": "./cli.js" },
+  "files": ["cli.js", "install.js", "bin"],
+  "scripts": { "postinstall": "node install.js", "test": "node --check cli.js && node --check install.js" },
   "keywords": ["cli", "github", "ai", "devtools", "cv-gh"],
   "author": "Cognivyn",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/cognivyn/cv-gh"
-  }
+  "repository": { "type": "git", "url": "https://github.com/cognivyn/cv-gh" },
+  "engines": { "node": ">=18" }
 }
