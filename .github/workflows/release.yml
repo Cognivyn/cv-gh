@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: linux-x86_64
+            binary: cv-gh
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact: darwin-aarch64
+            binary: cv-gh
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: windows-x86_64
+            binary: cv-gh.exe
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} -p cv-gh
+
+      - name: Archive release binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          tar -czf "dist/cv-gh-${{ matrix.artifact }}.tar.gz" \
+            -C "target/${{ matrix.target }}/release" \
+            "${{ matrix.binary }}"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.artifact }}
+          path: dist/cv-gh-${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish release archives
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
