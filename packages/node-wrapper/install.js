@@ -32,32 +32,71 @@ if (!artifact) {
 
 fs.mkdirSync(path.dirname(targetPath), { recursive: true });
 const archive = path.join(os.tmpdir(), `cv-gh-${process.pid}.tar.gz`);
-const file = fs.createWriteStream(archive);
-https.get(url, (response) => {
-  if (response.statusCode !== 200) {
-    response.resume();
-    file.close();
-    fs.rmSync(archive, { force: true });
-    console.warn(`Could not download ${url} (HTTP ${response.statusCode}). Install the Rust binary manually.`);
-    return;
-  }
-  response.pipe(file);
-  file.on('finish', () => {
-    file.close();
-    const extractionDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'cv-gh-extract-'));
-    const result = spawnSync('tar', ['-xzf', archive, '-C', extractionDirectory], { stdio: 'inherit' });
-    fs.rmSync(archive, { force: true });
-    const extracted = path.join(extractionDirectory, target);
-    if (result.status !== 0 || !fs.existsSync(extracted)) {
-      console.warn('Could not extract the cv-gh binary. Install the Rust binary manually.');
-    } else {
-      fs.renameSync(extracted, targetPath);
-      if (process.platform !== 'win32') fs.chmodSync(targetPath, 0o755);
+
+function download(currentUrl, file, redirectsLeft = 5) {
+  https.get(currentUrl, (response) => {
+    if (response.statusCode >= 300 && response.statusCode < 400) {
+      response.resume(); // Consume response data to free up memory
+      if (!response.headers.location) {
+        file.close();
+        fs.rmSync(archive, { force: true });
+        console.warn(`Could not download cv-gh: Redirect with no Location header. Install the Rust binary manually.`);
+        return;
+      }
+
+      let location;
+      try {
+        location = new URL(response.headers.location, currentUrl).href;
+      } catch (err) {
+        file.close();
+        fs.rmSync(archive, { force: true });
+        console.warn(`Could not download cv-gh: Invalid redirect Location (${response.headers.location}).`);
+        return;
+      }
+
+      if (!location.startsWith('https://')) {
+        file.close();
+        fs.rmSync(archive, { force: true });
+        console.warn(`Could not download cv-gh: Redirected to non-HTTPS URL (${location}). Install the Rust binary manually.`);
+        return;
+      }
+      if (redirectsLeft === 0) {
+        file.close();
+        fs.rmSync(archive, { force: true });
+        console.warn(`Could not download cv-gh: Too many redirects. Install the Rust binary manually.`);
+        return;
+      }
+      return download(location, file, redirectsLeft - 1);
     }
-    fs.rmSync(extractionDirectory, { recursive: true, force: true });
+
+    if (response.statusCode !== 200) {
+      response.resume();
+      file.close();
+      fs.rmSync(archive, { force: true });
+      console.warn(`Could not download ${currentUrl} (HTTP ${response.statusCode}). Install the Rust binary manually.`);
+      return;
+    }
+    response.pipe(file);
+    file.on('finish', () => {
+      file.close();
+      const extractionDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'cv-gh-extract-'));
+      const result = spawnSync('tar', ['-xzf', archive, '-C', extractionDirectory], { stdio: 'inherit' });
+      fs.rmSync(archive, { force: true });
+      const extracted = path.join(extractionDirectory, target);
+      if (result.status !== 0 || !fs.existsSync(extracted)) {
+        console.warn('Could not extract the cv-gh binary. Install the Rust binary manually.');
+      } else {
+        fs.renameSync(extracted, targetPath);
+        if (process.platform !== 'win32') fs.chmodSync(targetPath, 0o755);
+      }
+      fs.rmSync(extractionDirectory, { recursive: true, force: true });
+    });
+  }).on('error', (error) => {
+    file.close();
+    fs.rmSync(archive, { force: true });
+    console.warn(`Could not download cv-gh: ${error.message}`);
   });
-}).on('error', (error) => {
-  file.close();
-  fs.rmSync(archive, { force: true });
-  console.warn(`Could not download cv-gh: ${error.message}`);
-});
+}
+
+const file = fs.createWriteStream(archive);
+download(url, file);
