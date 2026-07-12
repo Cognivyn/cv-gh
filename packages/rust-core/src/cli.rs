@@ -1,15 +1,14 @@
 use clap::Subcommand;
 
-pub mod commands;
+use crate::commands;
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
     Init(commands::init::InitArgs),
     Pr(commands::pr::PrArgs),
     Release(commands::release::ReleaseArgs),
     Doctor,
     Status,
-    // Add more...
 }
 
 pub async fn run(command: Commands) -> anyhow::Result<()> {
@@ -18,6 +17,6 @@ pub async fn run(command: Commands) -> anyhow::Result<()> {
         Commands::Pr(args) => commands::pr::execute(args).await,
         Commands::Release(args) => commands::release::execute(args).await,
         Commands::Doctor => commands::doctor::execute().await,
-        _ => todo!(),
+        Commands::Status => commands::status::execute().await,
     }
 }

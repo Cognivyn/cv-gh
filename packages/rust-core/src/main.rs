@@ -1,7 +1,8 @@
 use clap::Parser;
 mod cli;
+mod commands;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -10,6 +11,5 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
-    cli::run(cli.command).await
+    cli::run(Cli::parse().command).await
 }
