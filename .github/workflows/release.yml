@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: cv-gh-linux-x86_64.tar.gz
+            binary_name: cv-gh
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact_name: cv-gh-darwin-aarch64.tar.gz
+            binary_name: cv-gh
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: cv-gh-windows-x86_64.tar.gz
+            binary_name: cv-gh.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Binary
+        run: cargo build --release -p cv-gh --target ${{ matrix.target }}
+
+      - name: Create Archive
+        shell: bash
+        run: |
+          tar -czf ${{ matrix.artifact_name }} -C target/${{ matrix.target }}/release ${{ matrix.binary_name }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          fail_on_unmatched_files: true
